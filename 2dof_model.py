@@ -56,7 +56,7 @@ for i in range(len(t)-1):
 fig, ax = plt.subplots()
 ax.plot(t,swr,'k')
 ax.plot(t,swf,'b')
-ax.plot(t,sm+1,'r')
+ax.plot(t,sm+hcg,'r')
 ax.plot(t,beta,'g')
 # ax.set_ylim((-10,10))
 fig.savefig("test.png")
