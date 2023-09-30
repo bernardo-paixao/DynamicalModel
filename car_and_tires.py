@@ -4,6 +4,13 @@
 import numpy as np
 import matplotlib.pyplot as plt 
 
+def trans_geocar_to_track(xu,yu,zu,s):
+        M = np.array([[xu[0],yu[0],zu[0]],
+                     [xu[1],yu[1],zu[1]],
+                     [xu[2],yu[2],zu[2]]])
+        s_track = M@s
+        return s_track
+
 def main():
     # Vehicule geometry
     wheelbase = 1.5 # m
@@ -44,19 +51,33 @@ def main():
 
     tan_Scgeo = np.diff(Scgeo,axis=1)/np.linalg.norm(np.diff(Scgeo,axis=1),axis=0)
     tan_Scgeo = np.concatenate((tan_Scgeo,tan_Scgeo[:,-1][:,np.newaxis]),axis=1) 
-    normal_Scgeo = np.array([-tan_Scgeo[1,:],tan_Scgeo[0,:],tan_Scgeo[2,:]]) #  Does not takes z in acccount!
+    # normal_Scgeo = np.array([-tan_Scgeo[1,:],tan_Scgeo[0,:],tan_Scgeo[2,:]]) #  Does not takes z in acccount!
+    level_Scgeo = np.array([np.sqrt(1-tan_Scgeo[0,:]**2/(tan_Scgeo[0,:]**2+tan_Scgeo[1,:]**2)),np.sqrt(tan_Scgeo[0,:]**2/(tan_Scgeo[0,:]**2+tan_Scgeo[1,:]**2)),np.zeros(Nt)]) 
+    normal_Scgeo = np.cross(tan_Scgeo,level_Scgeo,axisa=0,axisb=0,axisc=0)
+    print(np.shape(normal_Scgeo))
     
-    # Coordinates of the tire contact path in the car reference frame
-    fr_refcar = np.array([wheelbase*(1-weight_dist_rear),-front_axle_width/2,0])
-    fl_refcar = np.array([wheelbase*(1-weight_dist_rear),front_axle_width/2,0])
-    rr_refcar = np.array([-wheelbase*weight_dist_rear,-rear_axle_width/2,0])
-    rl_refcar = np.array([-wheelbase*weight_dist_rear,rear_axle_width/2,0])
+    # Coordinates of the tire contact path in the geometric car reference frame
+    fr_refgeo = np.array([wheelbase*(1-weight_dist_rear),-front_axle_width/2,0])
+    fl_refgeo = np.array([wheelbase*(1-weight_dist_rear),front_axle_width/2,0])
+    rr_refgeo = np.array([-wheelbase*weight_dist_rear,-rear_axle_width/2,0])
+    rl_refgeo = np.array([-wheelbase*weight_dist_rear,rear_axle_width/2,0])
 
     # Coordinates of the tire contact path in the track reference frame (does not takes z in acccount)
-    fr_reftrack = np.array([tan_Scgeo[0,:]*fr_refcar[0]+normal_Scgeo[0,:]*fr_refcar[1]+Scgeo[0,:], tan_Scgeo[1,:]*fr_refcar[0]+normal_Scgeo[1,:]*fr_refcar[1]+Scgeo[1,:], normal_Scgeo[2,:]+Scgeo[2,:]])
-    fl_reftrack = np.array([tan_Scgeo[0,:]*fl_refcar[0]+normal_Scgeo[0,:]*fl_refcar[1]+Scgeo[0,:], tan_Scgeo[1,:]*fl_refcar[0]+normal_Scgeo[1,:]*fl_refcar[1]+Scgeo[1,:], normal_Scgeo[2,:]+Scgeo[2,:]])
-    rl_reftrack = np.array([tan_Scgeo[0,:]*rl_refcar[0]+normal_Scgeo[0,:]*rl_refcar[1]+Scgeo[0,:], tan_Scgeo[1,:]*rl_refcar[0]+normal_Scgeo[1,:]*rl_refcar[1]+Scgeo[1,:], normal_Scgeo[2,:]+Scgeo[2,:]])
-    rr_reftrack = np.array([tan_Scgeo[0,:]*rr_refcar[0]+normal_Scgeo[0,:]*rr_refcar[1]+Scgeo[0,:], tan_Scgeo[1,:]*rr_refcar[0]+normal_Scgeo[1,:]*rr_refcar[1]+Scgeo[1,:], normal_Scgeo[2,:]+Scgeo[2,:]])
+    fr_reftrack = np.zeros((3,Nt))
+    fl_reftrack = np.zeros((3,Nt))
+    rl_reftrack = np.zeros((3,Nt))
+    rr_reftrack = np.zeros((3,Nt))
+    for i in range(Nt):
+        fr_reftrack[:,i] = Scgeo[:,i]+trans_geocar_to_track(tan_Scgeo[:,i],level_Scgeo[:,i],normal_Scgeo[:,i],fr_refgeo)
+        fl_reftrack[:,i] = Scgeo[:,i]+trans_geocar_to_track(tan_Scgeo[:,i],level_Scgeo[:,i],normal_Scgeo[:,i],fl_refgeo)
+        rl_reftrack[:,i] = Scgeo[:,i]+trans_geocar_to_track(tan_Scgeo[:,i],level_Scgeo[:,i],normal_Scgeo[:,i],rl_refgeo)
+        rr_reftrack[:,i] = Scgeo[:,i]+trans_geocar_to_track(tan_Scgeo[:,i],level_Scgeo[:,i],normal_Scgeo[:,i],rr_refgeo)
+        # if i<50:
+        #     print(f'Difference = {fr_reftrack[:,i]-fr_reftrack_alt}')
+        #     print(f'g . level = {np.dot([0,0,-1],level_Scgeo[:,i])}')
+        #     print(f'tan . level = {np.dot(tan_Scgeo[:,i],level_Scgeo[:,i])}')
+        #     print(f'normal . tan = {np.dot(tan_Scgeo[:,i],normal_Scgeo[:,i])}')
+
 
     # Plot track and vehicule trajectory 
     fig, ax = plt.subplots()
@@ -71,6 +92,8 @@ def main():
     # ax.quiver(*Scgeo[0:2,:], normal_Scgeo[0,:], normal_Scgeo[1,:], angles='xy', color='r') # There is a bug with quiver, the vector direction is plotted incorrectly
     fig.savefig('track.png')
     plt.show()
+
+    
 
 if __name__ == '__main__':
     main()
