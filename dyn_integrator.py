@@ -83,7 +83,7 @@ def wheel_pos_reftrack(wheelbase,weight_dist_rear,front_axle_width,rear_axle_wid
 def Sanchor_track(tMg,gMc,cSanchor, tScg):
     return tMg@gMc@cSanchor + tScg
 
-def ODE(t,X,track_inputs,car_inputs,time):
+def ODE(t,X,track_inputs,car_inputs,time,fig,ax):
     # The time derivates are computed in the Track (inertial) reference frame!
     id_t = np.argmin(np.abs(time-t))
 
@@ -157,10 +157,19 @@ def ODE(t,X,track_inputs,car_inputs,time):
 
     ddScgdt2 = (Ffranchor+Fflanchor+Frranchor+Frlanchor)/m_CG - g
 
-    Tfranchor = np.cross(Scg-Sfranchor,Ffranchor) + np.cross(Sfranchor-S_FRtrack,K_tyre@(S_FRtrack-Sfr))
-    Tflanchor = np.cross(Scg-Sflanchor,Fflanchor) + np.cross(Sflanchor-S_FLtrack,K_tyre@(S_FLtrack-Sfl))
-    Trranchor = np.cross(Scg-Srranchor,Frranchor) + np.cross(Srranchor-S_RRtrack,K_tyre@(S_RRtrack-Srr))
-    Trlanchor = np.cross(Scg-Srlanchor,Frlanchor) + np.cross(Srlanchor-S_RLtrack,K_tyre@(S_RLtrack-Srl))
+    Tfranchor = np.cross(Scg-Sfranchor,Ffranchor) + np.cross(Sfr-S_FRtrack,K_tyre@(S_FRtrack-Sfr))
+    Tflanchor = np.cross(Scg-Sflanchor,Fflanchor) + np.cross(Sfl-S_FLtrack,K_tyre@(S_FLtrack-Sfl))
+    Trranchor = np.cross(Scg-Srranchor,Frranchor) + np.cross(Srr-S_RRtrack,K_tyre@(S_RRtrack-Srr))
+    Trlanchor = np.cross(Scg-Srlanchor,Frlanchor) + np.cross(Srl-S_RLtrack,K_tyre@(S_RLtrack-Srl))
+
+    # ax.plot(t,Tfranchor[1],ls=' ', marker='o', c='b')
+    # ax.plot(t,Tflanchor[1],ls=' ', marker='o', c='r')
+    # ax.plot(t,Trranchor[1],ls=' ', marker='o', c='g')
+    # ax.plot(t,Trlanchor[1],ls=' ', marker='o', c='y')
+    ax.plot(t,Tfranchor[1]+Tflanchor[1]+Trranchor[1]+Trlanchor[1],ls=' ', marker='.', c='k')
+    ax.plot(t,Frranchor[2]+Frlanchor[2],ls=' ', marker='.', c='b')
+    ax.plot(t,Ffranchor[2]+Fflanchor[2],ls=' ', marker='.', c='g')
+    
     
     ddthetadt2 = np.linalg.inv(I_CG)@(Tfranchor+Tflanchor+Trranchor+Trlanchor) # This equation is wrong because the rotations need to be consider in the Geometrique reference frame
 
@@ -169,7 +178,7 @@ def ODE(t,X,track_inputs,car_inputs,time):
     
 if __name__ == '__main__':
     
-    t = np.linspace(0,5,120)
+    t = np.linspace(0,6,150)
 
     # Vehicule geometry
     wheelbase = 1.5 # m
@@ -177,7 +186,7 @@ if __name__ == '__main__':
     rear_axle_width = 1 # m
     weight_dist_rear = 0.5 # 0 to 1
 
-    Sgeo = np.array([0.1*t**2/2,0*t,0*t])
+    Sgeo = np.array([0*t,0*t,0*t])
     tan = np.array([np.ones(len(t)),0*t,0*t])
     level = np.array([0*t,np.ones(len(t)),0*t])
     normal = np.array([0*t,0*t,np.ones(len(t))])
@@ -214,25 +223,30 @@ if __name__ == '__main__':
     x0[21:23+1] = rl_refcar+np.array([0,0,0.1])
     x0[27:29+1] = np.array([0,0,0.5])
 
+    fig0, ax0 = plt.subplots()
+    init_cond = solve_ivp(ODE,[0,20],x0,method='RK45',args=(TrackInputs, CarInputs, t, fig0, ax0))
+    ax0.set_xlabel('t')
     # get the start time
     st = time.time()
 
-    var = ODE(0, x0, TrackInputs, CarInputs, t)
-    print(f'ddSfrdt2 = {var[0:3]}')
-    print(f'dSfrdt = {var[3:6]}')
-    print(f'ddSfldt2 = {var[6:9]}')
-    print(f'dSfldt = {var[9:12]}')
-    print(f'ddSrrdt2 = {var[12:15]}')
-    print(f'dSrrdt = {var[15:18]}')
-    print(f'ddSrldt2 = {var[18:21]}')
-    print(f'dSrldt = {var[21:24]}')
-    print(f'ddScgdt2 = {var[24:27]}')
-    print(f'dScgdt = {var[27:30]}')
-    print(f'ddthetadt2 = {var[30:33]}')
-    print(f'dthetadt = {var[33:36]}')
+    # var = ODE(0, x0, TrackInputs, CarInputs)
+    # print(f'ddSfrdt2 = {var[0:3]}')
+    # print(f'dSfrdt = {var[3:6]}')
+    # print(f'ddSfldt2 = {var[6:9]}')
+    # print(f'dSfldt = {var[9:12]}')
+    # print(f'ddSrrdt2 = {var[12:15]}')
+    # print(f'dSrrdt = {var[15:18]}')
+    # print(f'ddSrldt2 = {var[18:21]}')
+    # print(f'dSrldt = {var[21:24]}')
+    # print(f'ddScgdt2 = {var[24:27]}')
+    # print(f'dScgdt = {var[27:30]}')
+    # print(f'ddthetadt2 = {var[30:33]}')
+    # print(f'dthetadt = {var[33:36]}')
 
-
-    sol = solve_ivp(ODE,[t[0],t[-1]],x0,method='RK45',t_eval=t,args=(TrackInputs, CarInputs, t))
+    print(np.shape(init_cond.y))
+    fig4, ax4 = plt.subplots()
+    sol = solve_ivp(ODE,[t[0],t[-1]],init_cond.y[:,-1],method='RK45',t_eval=t,args=(TrackInputs, CarInputs, t, fig4, ax4))
+    ax4.set_xlabel('t')
 
     # get the end time
     et = time.time()
